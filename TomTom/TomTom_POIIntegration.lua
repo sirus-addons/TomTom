@@ -75,7 +75,7 @@ local function poi_OnClick(self, button)
         return
     end
 
-    if self.parentName == "WatchFrameLines" then
+    if self.parentName == "WatchFrameLines" or self.parentName == "QuestObjectiveTrackerContentsFrame" then
         local questFrame = findQuestFrameFromQuestIndex(self.questId)
         if not questFrame then
             return
@@ -93,10 +93,13 @@ hooksecurefunc("QuestPOI_DisplayButton", function(parentName, buttonType, button
       local poiButton = _G[buttonName];
 
       if not hooked[buttonName] then
-         poiButton:HookScript("OnClick", poi_OnClick)
          poiButton:RegisterForClicks("AnyUp")
          hooked[buttonName] = true
       end
+end)
+
+hooksecurefunc("QuestObjectiveTrackerPOI_OnClick", function(self, button)
+	poi_OnClick(self, button)
 end)
 
 local setPoints = {}

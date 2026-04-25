@@ -2,9 +2,9 @@
 ## Title: TomTom
 ## Author: jnwhiteh
 ## Version: wowi:revision
-## Notes: |@Version: 1@|Acts as your portable navigation assistant
-## Notes-zhCN: |@Version: 1@|一个简单的导航助手。
-## Notes-ruRU: |@Version: 1@|Удобный портативный навигатор по игровой карте
+## Notes: |@Version: 2@|Acts as your portable navigation assistant
+## Notes-zhCN: |@Version: 2@|一个简单的导航助手。
+## Notes-ruRU: |@Version: 2@|Удобный портативный навигатор по игровой карте
 ## Author: Cladhaire
 ## SavedVariables: TomTomDB, TomTomWaypoints
 ## X-Curse-Packaged-Version: r240-release
