@@ -9,7 +9,7 @@
 ----------------------------------------------------------------------------]]
 
 -- Import Astrolabe for locations
-local Astrolabe = DongleStub("Astrolabe-0.4")
+local Astrolabe = DongleStub("Astrolabe-0.4-Sirus")
 
 -- Create a tooltip to be used when mousing over waypoints
 local tooltip = CreateFrame("GameTooltip", "TomTomTooltip", UIParent, "GameTooltipTemplate")
@@ -114,13 +114,13 @@ function TomTom:SetWaypoint(c, z, x, y, callbacks, show_minimap, show_world)
         -- Add to the "All points" table so we can reparent easily
         table.insert(all_points, minimap)
 
-		minimap.icon = minimap:CreateTexture("BACKGROUND")
+		minimap.icon = minimap:CreateTexture(nil, "BACKGROUND")
 		minimap.icon:SetTexture("Interface\\AddOns\\TomTom\\Images\\GoldGreenDot")
 		minimap.icon:SetPoint("CENTER", 0, 0)
 		minimap.icon:SetHeight(12)
 		minimap.icon:SetWidth(12)
 
-		minimap.arrow = minimap:CreateTexture("BACKGROUND")
+		minimap.arrow = minimap:CreateTexture(nil, "BACKGROUND")
 		minimap.arrow:SetTexture("Interface\\AddOns\\TomTom\\Images\\MinimapArrow-Green")
 		minimap.arrow:SetPoint("CENTER", 0 ,0)
 		minimap.arrow:SetHeight(40)
@@ -144,7 +144,7 @@ function TomTom:SetWaypoint(c, z, x, y, callbacks, show_minimap, show_world)
 		worldmap:SetHeight(12)
 		worldmap:SetWidth(12)
 		worldmap:RegisterForClicks("RightButtonUp")
-		worldmap.icon = worldmap:CreateTexture("ARTWORK")
+		worldmap.icon = worldmap:CreateTexture(nil, "ARTWORK")
 		worldmap.icon:SetAllPoints()
 		worldmap.icon:SetTexture("Interface\\AddOns\\TomTom\\Images\\GoldGreenDot")
 

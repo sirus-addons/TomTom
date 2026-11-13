@@ -42,9 +42,9 @@ local function createconfig()
 			TomTom:ReloadWaypoints()
 		elseif info.arg == "minimap.enable" or info.arg == "worldmap.enable" then
 			TomTom:ReloadWaypoints()
-		elseif info.arg == "feeds.coords_throttle" then
+		elseif info.arg == "feeds.coords_throttle" and TomTom.UpdateCoordFeedThrottle then
 			TomTom:UpdateCoordFeedThrottle()
-		elseif info.arg == "feeds.arrow_throttle" then
+		elseif info.arg == "feeds.arrow_throttle" and TomTom.UpdateArrowFeedThrottle then
 			TomTom:UpdateArrowFeedThrottle()
 		end
 	end

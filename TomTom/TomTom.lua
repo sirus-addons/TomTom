@@ -4,7 +4,7 @@
 
 -- Simple localization table for messages
 local L = TomTomLocals
-local Astrolabe = DongleStub("Astrolabe-0.4")
+local Astrolabe = DongleStub("Astrolabe-0.4-Sirus")
 local ldb = LibStub("LibDataBroker-1.1")
 
 -- Speed up minimap updates
@@ -351,34 +351,39 @@ local world_click_verify = {
 	["S"] = function() return IsShiftKeyDown() end,
 }
 
-local origScript = WorldMapButton_OnClick
-WorldMapButton_OnClick = function(self, ...)
-	local mouseButton, button = ...
-	if mouseButton == "RightButton" then
-		-- Check for all the modifiers that are currently set
-		for mod in TomTom.db.profile.worldmap.create_modifier:gmatch("[ACS]") do
-			if not world_click_verify[mod] or not world_click_verify[mod]() then
-                return origScript and origScript(self, ...) or true
-			end
-		end
+local world_click_c, world_click_z, world_click_x, world_click_y
 
-		-- Actually try to add a note
-		local c,z = GetCurrentMapContinent(), GetCurrentMapZone()
-		local x,y = GetCurrentCursorPosition()
+WorldMapButton:HookScript("OnMouseDown", function(self, mouseButton)
+	world_click_c, world_click_z = GetCurrentMapContinent(), GetCurrentMapZone()
+	world_click_x, world_click_y = GetCurrentCursorPosition()
+end)
 
-		if z == 0 then
-			return origScript and origScript(self, ...) or true
-		end
+WorldMapButton:HookScript("OnMouseUp", function(self, mouseButton)
+	local c,z,x,y = world_click_c, world_click_z, world_click_x, world_click_y
+	world_click_c, world_click_z, world_click_x, world_click_y = nil, nil, nil, nil
 
-		local uid = TomTom:AddZWaypoint(c,z,x*100,y*100)
-	else
-		return origScript and origScript(self, ...) or true
+	if mouseButton ~= "RightButton" or not c then
+		return
 	end
-end
 
-if WorldMapButton:GetScript("OnMouseUp") == origScript then
-    WorldMapButton:SetScript("OnMouseUp", WorldMapButton_OnClick)
-end
+	-- Check for all the modifiers that are currently set
+	for mod in TomTom.db.profile.worldmap.create_modifier:gmatch("[ACS]") do
+		if not world_click_verify[mod] or not world_click_verify[mod]() then
+			return
+		end
+	end
+
+	-- Actually try to add a note
+	if z == 0 or not x or not y then
+		return
+	end
+
+	local uid = TomTom:AddZWaypoint(c,z,x*100,y*100)
+
+	if uid and c > 0 and (GetCurrentMapContinent() ~= c or GetCurrentMapZone() ~= z) then
+		SetMapZoom(c, z)
+	end
+end)
 
 local function WaypointCallback(event, arg1, arg2, arg3)
 	if event == "OnDistanceArrive" then
@@ -885,11 +890,25 @@ for C = -1, 3 do
 	reverseMapFileZ[mapFile] = 0
 end
 
+local lastC, lastZ = GetCurrentMapContinent(), GetCurrentMapZone()
+for C = 4, select("#", GetMapContinents()) do
+	SetMapZoom(C, 0)
+	local mapFile = GetMapInfo()
+	if mapFile and mapFile ~= "" and (not reverseMapFileC[mapFile] or reverseMapFileC[mapFile] == C) then
+		continentMapFile[C] = mapFile
+		if not reverseMapFileC[mapFile] then
+			reverseMapFileC[mapFile] = C
+			reverseMapFileZ[mapFile] = 0
+		end
+	end
+end
+SetMapZoom(lastC, lastZ)
+
 function TomTom:GetMapFile(C, Z)
 	if not C or not Z then return end
 	if Z == 0 then
 		return continentMapFile[C]
-	elseif C > 0 then
+	elseif C > 0 and Astrolabe.ContinentList[C] then
 		return Astrolabe.ContinentList[C][Z]
 	end
 end
@@ -988,10 +1007,16 @@ local function usage()
 	ChatFrame1:AddMessage(L["|cffffff78/way reset <zone>|r - Resets all waypoints in zone"])
 end
 
+local utf8lower = utf8 and utf8.lower or string.lower
+
+local function zoneKey(name)
+	return (utf8lower(name):gsub("[%s%p%d]", ""))
+end
+
 local zlist = {}
 for cidx,c in ipairs{GetMapContinents()} do
 	for zidx,z in ipairs{GetMapZones(cidx)} do
-		zlist[z:lower():gsub("[%L]", "")] = {cidx, zidx, z}
+		zlist[zoneKey(z)] = {cidx, zidx, z}
 	end
 end
 
@@ -1062,7 +1087,7 @@ SlashCmdList["TOMTOM_WAY"] = function(msg)
 
 			-- Find a fuzzy match for the zone
 			local matches = {}
-			zone = zone:lower():gsub("[%L]", "")
+			zone = zoneKey(zone)
 
 			for z,entry in pairs(zlist) do
 				if z:match(zone) then
@@ -1070,7 +1095,7 @@ SlashCmdList["TOMTOM_WAY"] = function(msg)
 				end
 			end
 
-			if #matches > 5 then
+			if #matches > 5 or #matches == 0 then
 				local msg = string.format(L["Found %d possible matches for zone %s.  Please be more specific"], #matches, tokens[2])
 				ChatFrame1:AddMessage(msg)
 				return
@@ -1113,7 +1138,7 @@ SlashCmdList["TOMTOM_WAY"] = function(msg)
 
 		-- Find a fuzzy match for the zone
 		local matches = {}
-		zone = zone:lower():gsub("[%L]", "")
+		zone = zoneKey(zone)
 
 		for z,entry in pairs(zlist) do
 			if z:match(zone) then

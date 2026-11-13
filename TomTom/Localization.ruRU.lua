@@ -3,6 +3,7 @@
 if ( GetLocale() == "ruRU" ) then
 
 TomTomLocals = {
+	["%d yards"] = "%d ярдов",
 	["%s (%.2f, %.2f)"] = "%s (%.2f, %.2f)",
 	["%s yards away"] = "%s ярдов осталось",
 	["Accept waypoints from guild and party members"] = "Принимать направления от членов гильдии или группы",

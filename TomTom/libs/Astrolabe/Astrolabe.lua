@@ -41,7 +41,7 @@ Note:
 -- WARNING!!!
 -- DO NOT MAKE CHANGES TO THIS LIBRARY WITHOUT FIRST CHANGING THE LIBRARY_VERSION_MAJOR
 -- STRING (to something unique) OR ELSE YOU MAY BREAK OTHER ADDONS THAT USE THIS LIBRARY!!!
-local LIBRARY_VERSION_MAJOR = "Astrolabe-0.4"
+local LIBRARY_VERSION_MAJOR = "Astrolabe-0.4-Sirus"
 local LIBRARY_VERSION_MINOR = tonumber(string.match("$Revision: 107 $", "(%d+)") or 1)
 
 if not DongleStub then error(LIBRARY_VERSION_MAJOR .. " requires DongleStub.") end
@@ -49,7 +49,6 @@ if not DongleStub:IsNewerVersion(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR) t
 
 local Astrolabe = {};
 
--- define local variables for Data Tables (defined at the end of this file)
 local WorldMapSize, MinimapSize, ValidMinimapShapes;
 
 function Astrolabe:GetVersion()
@@ -140,12 +139,6 @@ local function getContPosition( zoneData, z, x, y )
 		y = y * zoneData.height;
 	end
 	return x, y;
-end
-
-local function printError( ... )
-	if ( ASTROLABE_VERBOSE) then
-		print(...)
-	end
 end
 
 
@@ -274,6 +267,18 @@ function Astrolabe:TranslateWorldMapPosition( C, Z, xPos, yPos, nC, nZ )
 	return (xPos / zoneData.width), (yPos / zoneData.height);
 end
 
+local mapLocations = {};
+
+local function locateMap( C, Z, x, y )
+	if ( C < 0 ) then
+		local location = mapLocations[GetMapInfo()];
+		if ( location ) then
+			return location[1], location[2], x, y;
+		end
+	end
+	return C, Z, x, y;
+end
+
 --*****************************************************************************
 -- This function will do its utmost to retrieve some sort of valid position
 -- for the specified unit, including changing the current map zoom (if needed).
@@ -299,12 +304,13 @@ function Astrolabe:GetUnitPosition( unit, noMapChange )
 			end
 		end
 		local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
+		local mapC, mapZ = locateMap(C, Z);
 		if ( C ~= lastCont or Z ~= lastZone ) then
 			SetMapZoom(lastCont, lastZone); -- set map zoom back to what it was before
 		end
-		return C, Z, x, y;
+		return mapC, mapZ, x, y;
 	end
-	return GetCurrentMapContinent(), GetCurrentMapZone(), x, y;
+	return locateMap(GetCurrentMapContinent(), GetCurrentMapZone(), x, y);
 end
 
 --*****************************************************************************
@@ -335,12 +341,13 @@ function Astrolabe:GetCurrentPlayerPosition()
 			end
 		end
 		local C, Z = GetCurrentMapContinent(), GetCurrentMapZone();
+		local mapC, mapZ = locateMap(C, Z);
 		if ( C ~= lastCont or Z ~= lastZone ) then
 			SetMapZoom(lastCont, lastZone); --set map zoom back to what it was before
 		end
-		return C, Z, x, y;
+		return mapC, mapZ, x, y;
 	end
-	return GetCurrentMapContinent(), GetCurrentMapZone(), x, y;
+	return locateMap(GetCurrentMapContinent(), GetCurrentMapZone(), x, y);
 end
 
 
@@ -501,7 +508,7 @@ function Astrolabe:PlaceIconOnMinimap( icon, continent, zone, xPos, yPos )
 	minimapShape = GetMinimapShape and ValidMinimapShapes[GetMinimapShape()];
 
 	-- place the icon on the Minimap and :Show() it
-	local map = self.Minimap
+	local map = Minimap
 	placeIconOnMinimap(map, map:GetZoom(), map:GetWidth(), map:GetHeight(), icon, dist, xDist, yDist);
 	icon:Show()
 
@@ -567,7 +574,7 @@ do
 
 			local C, Z, x, y = self:GetCurrentPlayerPosition();
 			if ( C and C >= 0 ) then
-				local Minimap = Astrolabe.Minimap;
+				local Minimap = Minimap;
 				local lastPosition = self.LastPlayerPosition;
 				local lC, lZ, lx, ly = unpack(lastPosition);
 
@@ -696,7 +703,6 @@ do
 
 			local C, Z, x, y = self:GetCurrentPlayerPosition();
 			if ( C and C >= 0 ) then
-				local Minimap = self.Minimap;
 				minimapRotationEnabled = GetCVar("rotateMinimap") ~= "0"
 				if ( minimapRotationEnabled ) then
 					minimapRotationOffset = GetPlayerFacing();
@@ -710,6 +716,7 @@ do
 
 				local currentZoom = Minimap:GetZoom();
 				lastZoom = currentZoom;
+				local Minimap = Minimap;
 				local mapWidth = Minimap:GetWidth();
 				local mapHeight = Minimap:GetHeight();
 				local count = 0
@@ -868,7 +875,7 @@ end
 function Astrolabe:OnEvent( frame, event )
 	if ( event == "MINIMAP_UPDATE_ZOOM" ) then
 		-- update minimap zoom scale
-		local Minimap = self.Minimap;
+		local Minimap = Minimap;
 		local curZoom = Minimap:GetZoom();
 		if ( GetCVar("minimapZoom") == GetCVar("minimapInsideZoom") ) then
 			if ( curZoom < 2 ) then
@@ -929,9 +936,7 @@ function Astrolabe:OnShow( frame )
 		SetMapToCurrentZone();
 	end
 	local C, Z = Astrolabe:GetCurrentPlayerPosition();
-	if ( C and C >= 0 ) then
-		SetMapZoom(C, Z);
-	else
+	if not ( C and C >= 0 ) then
 		frame:Hide();
 		return
 	end
@@ -971,10 +976,6 @@ end
 
 local function activate( newInstance, oldInstance )
 	if ( oldInstance ) then -- this is an upgrade activate
-		-- print upgrade debug info
-		local _, oldVersion = oldInstance:GetVersion();
-		printError("Upgrading "..LIBRARY_VERSION_MAJOR.." from version "..oldVersion.." to version "..LIBRARY_VERSION_MINOR);
-
 		if ( oldInstance.DumpNewIconsCache ) then
 			oldInstance:DumpNewIconsCache()
 		end
@@ -990,12 +991,8 @@ local function activate( newInstance, oldInstance )
 		end
 		newInstance.MinimapIconCount = iconCount
 
-		-- explicity carry over our Minimap reference, or create it if we don't already have one
-		newInstance.Minimap = oldInstance.Minimap or _G.Minimap
-
 		Astrolabe = oldInstance;
 	else
-		newInstance.Minimap = _G.Minimap
 		local frame = CreateFrame("Frame");
 		newInstance.processingFrame = frame;
 
@@ -1013,7 +1010,7 @@ local function activate( newInstance, oldInstance )
 
 	local frame = newInstance.processingFrame;
 	frame:Hide();
-	frame:SetParent(Minimap);
+	frame:SetParent("Minimap");
 	frame:UnregisterAllEvents();
 	frame:RegisterEvent("MINIMAP_UPDATE_ZOOM");
 	frame:RegisterEvent("PLAYER_LEAVING_WORLD");
@@ -1135,6 +1132,12 @@ WorldMapSize = {
 				xOffset = 9541.702868577344,
 				yOffset = 3424.87645454774,
 			},
+			ClassicMountHyjal = {
+				height = 1666.6665,
+				width = 2499.9998,
+				xOffset = 18591.5996,
+				yOffset = 6654.0674,
+			},
 			Darkshore = {
 				height = 4366.635262519317,
 				width = 6550.07142937905,
@@ -1243,6 +1246,12 @@ WorldMapSize = {
 				xOffset = 16533.4461782123,
 				yOffset = 18766.43318304924,
 			},
+			wailingcavernsentrance = {
+				height = 381.057,
+				width = 567.7701,
+				xOffset = 18971.9296,
+				yOffset = 13293.2144,
+			},
 			Winterspring = {
 				height = 4733.299352687333,
 				width = 7100.076688034489,
@@ -1276,6 +1285,24 @@ WorldMapSize = {
 				width = 2487.500569928747,
 				xOffset = 20251.13345045087,
 				yOffset = 17065.99453090572,
+			},
+			blackrockmountain1 = {
+				height = 475,
+				width = 712.5,
+				xOffset = 18933.2207,
+				yOffset = 18501.3438,
+			},
+			blackrockmountain2 = {
+				height = 170,
+				width = 255,
+				xOffset = 19316.9707,
+				yOffset = 18656.3438,
+			},
+			blackrockmountain3 = {
+				height = 506.6826,
+				width = 760.024,
+				xOffset = 18799.4567,
+				yOffset = 18263.0025,
 			},
 			BlastedLands = {
 				height = 2233.342487048268,
@@ -1331,6 +1358,12 @@ WorldMapSize = {
 				xOffset = 21055.29898547313,
 				yOffset = 5309.698628620597,
 			},
+			GilneasCity = {
+				height = 1173.26,
+				width = 1759.8899,
+				xOffset = 15878.7808,
+				yOffset = 11922.9638,
+			},
 			Hilsbrad = {
 				height = 2133.341648261057,
 				width = 3199.998998314975,
@@ -1355,11 +1388,23 @@ WorldMapSize = {
 				xOffset = 20165.71744013867,
 				yOffset = 15663.90644131906,
 			},
+			Norderon = {
+				height = 3551.7778,
+				width = 5333,
+				xOffset = 16038.7707,
+				yOffset = 4958.066,
+			},
 			Redridge = {
 				height = 1447.921846941264,
 				width = 2170.833008876805,
 				xOffset = 19742.80073199006,
 				yOffset = 19751.42200372843,
+			},
+			scarletmonasteryentrance = {
+				height = 136.6602,
+				width = 204.9902,
+				xOffset = 18831.9756,
+				yOffset = 8227.5137,
 			},
 			SearingGorge = {
 				height = 1487.505327445583,
@@ -1573,6 +1618,216 @@ WorldMapSize = {
 			},
 		},
 	},
+	-- Felyard
+	[5] = {
+		parentContinent = 5,
+		height = 5333,
+		width = 7999.5,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			FelyardAlh = {
+				height = 2133.2,
+				width = 3199.8001,
+				xOffset = 0,
+				yOffset = 0,
+			},
+			FelyardChashaProklyatih = {
+				height = 1066.6,
+				width = 1599.9,
+				xOffset = 2666.5001,
+				yOffset = 2133.2,
+			},
+			FelyardDlanHodira = {
+				height = 2133.2,
+				width = 3199.8,
+				xOffset = 2666.5001,
+				yOffset = 3733.1,
+			},
+			FelyardHaustlund = {
+				height = 2133.2,
+				width = 3199.8,
+				xOffset = 3733.1001,
+				yOffset = 2133.2,
+			},
+			FelyardLesVelikanov = {
+				height = 1955.4333,
+				width = 2933.15,
+				xOffset = 1999.8751,
+				yOffset = 2666.5,
+			},
+			FelyardLunar = {
+				height = 1777.6666,
+				width = 2666.5002,
+				xOffset = 5866.3001,
+				yOffset = 3110.9167,
+			},
+			FelyardOgnenniHolm = {
+				height = 619.575,
+				width = 1066.6,
+				xOffset = 3999.7501,
+				yOffset = 1733.225,
+			},
+			FelyardOskvernenniKrai = {
+				height = 2666.5,
+				width = 3999.75,
+				xOffset = 2399.8501,
+				yOffset = 0,
+			},
+			FelyardPokoiGrolana = {
+				height = 1599.9,
+				width = 2399.85,
+				xOffset = 533.3001,
+				yOffset = 3733.1,
+			},
+			FelyardTronheim = {
+				height = 799.95,
+				width = 1199.925,
+				xOffset = 2933.1501,
+				yOffset = 3066.475,
+			},
+			FelyardYarnvid = {
+				height = 2844.2601,
+				width = 4266.3999,
+				xOffset = -533.2998,
+				yOffset = 1244.3699,
+			},
+		},
+	},
+	-- Lost Island
+	[6] = {
+		parentContinent = 6,
+		height = 2933.1501,
+		width = 4399.725,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			LostIsland = {
+				height = 2933.1501,
+				width = 4399.725,
+				xOffset = 0,
+				yOffset = 0,
+			},
+		},
+	},
+	-- Rising Depths
+	[7] = {
+		parentContinent = 7,
+		height = 2666.5,
+		width = 3999.75,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			RisingDepths = {
+				height = 2666.5,
+				width = 3999.75,
+				xOffset = 0,
+				yOffset = 0,
+			},
+		},
+	},
+	-- Mangrove Island
+	[8] = {
+		parentContinent = 8,
+		height = 2666.5,
+		width = 3999.7501,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			MangroveIsland = {
+				height = 2666.5,
+				width = 3999.7501,
+				xOffset = 0,
+				yOffset = 0,
+			},
+		},
+	},
+	-- Tel'Abim
+	[9] = {
+		parentContinent = 9,
+		height = 3733.1,
+		width = 5599.65,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			TelAbim = {
+				height = 3733.1,
+				width = 5599.65,
+				xOffset = 0,
+				yOffset = 0,
+			},
+		},
+	},
+	-- Tol'Garod
+	[10] = {
+		parentContinent = 10,
+		height = 1860.1893,
+		width = 2325.8907,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			TolGarod = {
+				height = 1860.1893,
+				width = 2325.8907,
+				xOffset = 0,
+				yOffset = 0,
+			},
+		},
+	},
+	-- Andrakkis
+	[11] = {
+		parentContinent = 11,
+		height = 2242.9971,
+		width = 3306.46,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			Andrakkis = {
+				height = 2242.9971,
+				width = 3306.46,
+				xOffset = 0,
+				yOffset = 0,
+			},
+		},
+	},
+	-- VIP-PRIME
+	[12] = {
+		parentContinent = 12,
+		height = 2133.2,
+		width = 3199.8,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			PRIME = {
+				height = 911.0541,
+				width = 1364.8799,
+				xOffset = 768.32,
+				yOffset = 1155.4834,
+			},
+			VIP = {
+				height = 491.2512,
+				width = 733.6238,
+				xOffset = 1478.0029,
+				yOffset = 226.6526,
+			},
+		},
+	},
+	-- GilneasMain
+	[13] = {
+		parentContinent = 13,
+		height = 3199.8,
+		width = 4799.9001,
+		xOffset = 0,
+		yOffset = 0,
+		zoneData = {
+			GilneasSilverpineForest = {
+				height = 1599.9,
+				width = 2399.8499,
+				xOffset = 1333.4502,
+				yOffset = 0,
+			},
+		},
+	},
 }
 
 local zeroData;
@@ -1580,17 +1835,21 @@ zeroData = { xOffset = 0, height = 0, yOffset = 0, width = 0, __index = function
 setmetatable(zeroData, zeroData);
 setmetatable(WorldMapSize, zeroData);
 
+Astrolabe.ContinentList[12] = { "PRIME", "VIP" };
+Astrolabe.ContinentList[13] = { "GilneasSilverpineForest" };
+
 for continent, zones in pairs(Astrolabe.ContinentList) do
 	local mapData = WorldMapSize[continent];
+	local zoneData = rawget(mapData, "zoneData") or {};
 	for index, mapName in pairs(zones) do
-		if not ( mapData.zoneData[mapName] ) then
-			--WE HAVE A PROBLEM!!!
-			printError("Astrolabe is missing data for "..select(index, GetMapZones(continent))..".");
-			mapData.zoneData[mapName] = zeroData;
+		if not ( zoneData[mapName] ) then
+			ChatFrame1:AddMessage("Astrolabe is missing data for "..select(index, GetMapZones(continent))..".");
+			zoneData[mapName] = zeroData;
 		end
-		mapData[index] = mapData.zoneData[mapName];
-		mapData.zoneData[mapName] = nil;
+		mapData[index] = zoneData[mapName];
+		mapLocations[mapName] = mapLocations[mapName] or { continent, index };
 	end
+	mapData.zoneData = nil;
 end
 
 

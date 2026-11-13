@@ -39,6 +39,9 @@ end
 local function setQuestWaypoint(self)
     local c, z = GetCurrentMapContinent(), GetCurrentMapZone();
     local x, y = POIAnchorToCoord(self)
+    if not x or not y then
+        return
+    end
 
     local qid = self.questId
 
@@ -92,7 +95,7 @@ hooksecurefunc("QuestPOI_DisplayButton", function(parentName, buttonType, button
       local buttonName = "poi"..tostring(parentName)..tostring(buttonType).."_"..tostring(buttonIndex);
       local poiButton = _G[buttonName];
 
-      if not hooked[buttonName] then
+      if poiButton and not hooked[buttonName] then
          poiButton:RegisterForClicks("AnyUp")
          hooked[buttonName] = true
       end
