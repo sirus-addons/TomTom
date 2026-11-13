@@ -351,15 +351,16 @@ local world_click_verify = {
 	["S"] = function() return IsShiftKeyDown() end,
 }
 
-local world_click_c, world_click_z
+local world_click_c, world_click_z, world_click_x, world_click_y
 
 WorldMapButton:HookScript("OnMouseDown", function(self, mouseButton)
 	world_click_c, world_click_z = GetCurrentMapContinent(), GetCurrentMapZone()
+	world_click_x, world_click_y = GetCurrentCursorPosition()
 end)
 
 WorldMapButton:HookScript("OnMouseUp", function(self, mouseButton)
-	local c,z = world_click_c, world_click_z
-	world_click_c, world_click_z = nil, nil
+	local c,z,x,y = world_click_c, world_click_z, world_click_x, world_click_y
+	world_click_c, world_click_z, world_click_x, world_click_y = nil, nil, nil, nil
 
 	if mouseButton ~= "RightButton" or not c then
 		return
@@ -373,8 +374,6 @@ WorldMapButton:HookScript("OnMouseUp", function(self, mouseButton)
 	end
 
 	-- Actually try to add a note
-	local x,y = GetCurrentCursorPosition()
-
 	if z == 0 or not x or not y then
 		return
 	end
